@@ -1,43 +1,37 @@
 import openai
-import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext, ApplicationBuilder, filters
+from aiogram import Bot, types
+from aiogram.dispatcher import Dispatcher
+from aiogram.utils import executor
 
 # Здесь введите токен вашего бота
-TELEGRAM_BOT_TOKEN = '6007270444:AAHREzJ4nfr-GRIOd7k9wi4q5tFq8scEUuM'
+token = '6007270444:AAHREzJ4nfr-GRIOd7k9wi4q5tFq8scEUuM'
 
 # Здесь введите ваш API-ключ OpenAI
-OPENAI_API_KEY = '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'
+openai.api_key = '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'
 
-# Инициализируем подключение к API OpenAI
-openai.api_key = OPENAI_API_KEY
+# Диспетчер
+bot = Bot(token)
+dp = Dispatcher(bot)
 
+# Функции бота
+@dp.message_handler(commands=['start', 'help'])
+async def send_welcome(message: types.Message):
+    await message.reply("Привет! Я ваш телеграм-бот.")
 
-# Функция-обработчик текстовых сообщений
-async def reply_message(update: Updater, context: CallbackContext):
-    # Получаем текст сообщения, отправленного пользователем
-    user_message = update.message.text
+@dp.message_handler()
+async def send_response(message: types.Message):
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=message.text, 
+        temperature=0.9,
+        max_tokens=150,
+        top_p=1,
+        frequency_penalty=0.0,
+        presence_penalty=0.6,
+        stop=["You:"]
+    )
+    await message.answer(response['choices'][0]['text'])
 
-    # Задаем параметры для запроса к API OpenAI
-    prompt = f"Explain '{user_message}' in simple terms"
-    model = 'text-davinci-002'
-    temperature = 0.5
-    max_tokens = 100
-
-    # Получаем ответ от API OpenAI
-    response = openai.Completion.create(engine=model, prompt=prompt, temperature=temperature, max_tokens=max_tokens)
-    bot_reply = response.choices[0].text
-
-    # Отправляем ответ от бота
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=bot_reply)
-
-# Функция-обработчик команды /start
-async def start(update: Updater, context: CallbackContext):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Привет! Я бот.")
-
-# Функция для запуска бота
 if __name__ == '__main__':
-    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    print("Успех")
-    start_handler = CommandHandler('Start', start)
-    application.add_handler(start_handler)
-    application.run_polling()
+    from aiogram import executor
+    executor.start_polling(dp, skip_updates=True)
